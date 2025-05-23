@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Registro de Visitantes</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .header-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+            margin-bottom: 1.5rem;
+        }
+        .visitor-row {
+            transition: all 0.3s ease;
+            border-left: 4px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        .visitor-row:hover {
+            background-color: #e9ecef;
+            transform: translateY(-2px);
+        }
+        .visitor-recent {
+            border-left-color: #28a745 !important;
+            background-color: #d4edda;
+        }
+        .stats-card {
+            background: linear-gradient(45deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+        .time-display {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .motivo-badge {
+            font-size: 0.8rem;
+            max-width: 150px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .btn-eliminar {
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+        .btn-eliminar:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-0"><i class="fas fa-sign-in-alt me-3"></i>Sistema de Registro de Visitantes</h1>
+                    <p class="mb-0 mt-2">Control de acceso y registro de visitas</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex flex-column">
+                        <small>Fecha:</small>
+                        <strong id="fechaActual"></strong>
+                        <div id="horaActual" class="time-display mt-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Formulario para registrar visitantes -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-user-plus me-2"></i>Registrar Nuevo Visitante</h5>
+            </div>
+            <div class="card-body">
+                <form id="formRegistrarVisitante">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="nombreVisitante" class="form-label">Nombre Completo</label>
+                            <input type="text" class="form-control" id="nombreVisitante" placeholder="Ingrese el nombre completo" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="motivoVisita" class="form-label">Motivo de la Visita</label>
+                            <input type="text" class="form-control" id="motivoVisita" placeholder="Ingrese el motivo de la visita" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="horaEntrada" class="form-label">Hora de Entrada</label>
+                            <input type="time" class="form-control" id="horaEntrada" required>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-plus"></i> Registrar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="row" id="estadisticas" style="display: none;">
+            <div class="col-md-3">
+                <div class="card stats-card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <h4 id="totalVisitantes">0</h4>
+                        <small>Total Visitantes Hoy</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white text-center">
+                    <div class="card-body">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                        <h4 id="visitantesRecientes">0</h4>
+                        <small>Últimas 2 Horas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white text-center">
+                    <div class="card-body">
+                        <i class="fas fa-building fa-2x mb-2"></i>
+                        <h4 id="motivoMasComun">-</h4>
+                        <small>Motivo Más Común</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-secondary text-white text-center">
+                    <div class="card-body">
+                        <i class="fas fa-chart-line fa-2x mb-2"></i>
+                        <h4 id="promedioHora">00:00</h4>
+                        <small>Hora Promedio</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de visitantes -->
+        <div class="card">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Registro de Visitantes del Día</h5>
+                <div>
+                    <button class="btn btn-outline-light btn-sm me-2" onclick="filtrarPorMotivo()">
+                        <i class="fas fa-filter"></i> Filtrar
+                    </button>
+                    <button class="btn btn-outline-light btn-sm me-2" onclick="limpiarRegistros()">
+                        <i class="fas fa-eraser"></i> Limpiar Todo
+                    </button>
+                    <button class="btn btn-light btn-sm" onclick="exportarReporte()">
+                        <i class="fas fa-download"></i> Exportar Reporte
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="listaVisitantes">
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-user-friends fa-3x mb-3"></i>
+                        <p>No hay visitantes registrados hoy.<br>Usa el formulario de arriba para registrar el primer visitante.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen del día -->
+        <div class="card" id="resumenCard" style="display: none;">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Resumen del Día</h5>
+            </div>
+            <div class="card-body">
+                <div id="resumenContenido"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-5 py-4 bg-light text-center">
+        <p class="mb-0 text-muted">Sistema de Registro de Visitantes</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Variables globales
+        let visitantes = [];
+        let contadorId = 1;
+        let filtroActivo = '';
+
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', function() {
+            mostrarFechaActual();
+            actualizarHoraActual();
+            establecerHoraActual();
+            document.getElementById('formRegistrarVisitante').addEventListener('submit', registrarVisitante);
+            
+            // Actualizar hora cada minuto
+            setInterval(actualizarHoraActual, 60000);
+            
+            // Mostrar/ocultar campo "Otros"
+            document.getElementById('motivoVisita').addEventListener('change', function() {
+                const otroField = document.getElementById('motivoOtro');
+                if (this.value === 'Otros') {
+                    otroField.style.display = 'block';
+                    otroField.required = true;
+                } else {
+                    otroField.style.display = 'none';
+                    otroField.required = false;
+                    otroField.value = '';
+                }
+            });
+        });
+
+        function mostrarFechaActual() {
+            const fecha = new Date();
+            const opciones = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            document.getElementById('fechaActual').textContent = 
+                fecha.toLocaleDateString('es-ES', opciones);
+        }
+
+        function actualizarHoraActual() {
+            const ahora = new Date();
+            const hora = ahora.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('horaActual').textContent = hora;
+        }
+
+        function establecerHoraActual() {
+            const ahora = new Date();
+            const horaString = ahora.toTimeString().slice(0, 5);
+            document.getElementById('horaEntrada').value = horaString;
+        }
+
+        function registrarVisitante(event) {
+            event.preventDefault();
+            
+            const nombre = document.getElementById('nombreVisitante').value.trim();
+            const motivo = document.getElementById('motivoVisita').value.trim();
+            const horaEntrada = document.getElementById('horaEntrada').value;
+
+            if (nombre && motivo && horaEntrada) {
+                const visitante = {
+                    id: contadorId++,
+                    nombre: nombre,
+                    motivo: motivo,
+                    horaEntrada: horaEntrada,
+                    timestamp: new Date(),
+                    fechaRegistro: new Date().toLocaleDateString('es-ES')
+                };
+
+                visitantes.push(visitante);
+                actualizarListaVisitantes();
+                actualizarEstadisticas();
+                
+                // Limpiar formulario
+                document.getElementById('formRegistrarVisitante').reset();
+                establecerHoraActual();
+                document.getElementById('nombreVisitante').focus();
+                
+                // Mostrar mensaje de éxito
+                mostrarMensaje(`Visitante "${nombre}" registrado correctamente a las ${horaEntrada}`, 'success');
+            }
+        }
+
+        function actualizarListaVisitantes() {
+            const container = document.getElementById('listaVisitantes');
+            
+            let visitantesFiltrados = visitantes;
+            if (filtroActivo) {
+                visitantesFiltrados = visitantes.filter(v => 
+                    v.motivo.toLowerCase().includes(filtroActivo.toLowerCase())
+                );
+            }
+            
+            if (visitantesFiltrados.length === 0) {
+                const mensaje = filtroActivo ? 
+                    `No hay visitantes que coincidan con el filtro "${filtroActivo}"` :
+                    'No hay visitantes registrados hoy.<br>Usa el formulario de arriba para registrar el primer visitante.';
+                    
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-user-friends fa-3x mb-3"></i>
+                        <p>${mensaje}</p>
+                        ${filtroActivo ? '<button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltro()">Limpiar Filtro</button>' : ''}
+                    </div>
+                `;
+                return;
+            }
+
+            // Ordenar por hora de entrada (más recientes primero)
+            visitantesFiltrados.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            let html = '';
+            const ahora = new Date();
+            
+            visitantesFiltrados.forEach(visitante => {
+                const tiempoTranscurrido = Math.floor((ahora - visitante.timestamp) / (1000 * 60)); // minutos
+                const esReciente = tiempoTranscurrido <= 120; // últimas 2 horas
+                const claseReciente = esReciente ? 'visitor-recent' : '';
+                
+                const tiempoTexto = tiempoTranscurrido < 60 ? 
+                    `${tiempoTranscurrido} min` : 
+                    `${Math.floor(tiempoTranscurrido / 60)}h ${tiempoTranscurrido % 60}m`;
+                
+                html += `
+                    <div class="visitor-row p-3 border-bottom ${claseReciente}">
+                        <div class="row align-items-center">
+                            <div class="col-md-4">
+                                <h6 class="mb-1">${visitante.nombre}</h6>
+                                <small class="text-muted">Registrado hace ${tiempoTexto}</small>
+                            </div>
+                            <div class="col-md-4">
+                                <span class="badge bg-info motivo-badge" title="${visitante.motivo}">
+                                    ${visitante.motivo}
+                                </span>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="time-display text-primary">${visitante.horaEntrada}</div>
+                                ${esReciente ? '<span class="badge bg-success">Reciente</span>' : '<span class="badge bg-secondary">Anterior</span>'}
+                            </div>
+                            <div class="col-md-2 text-end">
+                                <button class="btn btn-outline-danger btn-sm btn-eliminar" 
+                                        onclick="eliminarVisitante(${visitante.id})"
+                                        title="Eliminar registro">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function eliminarVisitante(id) {
+            const visitante = visitantes.find(v => v.id === id);
+            if (visitante && confirm(`¿Eliminar el registro de "${visitante.nombre}"?`)) {
+                visitantes = visitantes.filter(v => v.id !== id);
+                actualizarListaVisitantes();
+                actualizarEstadisticas();
+                mostrarMensaje('Registro eliminado correctamente', 'warning');
+            }
+        }
+
+        function limpiarRegistros() {
+            if (visitantes.length > 0 && confirm('¿Eliminar todos los registros del día?')) {
+                visitantes = [];
+                actualizarListaVisitantes();
+                actualizarEstadisticas();
+                mostrarMensaje('Todos los registros han sido eliminados', 'info');
+            }
+        }
+
+        function filtrarPorMotivo() {
+            const motivo = prompt('Ingrese el motivo a filtrar (o deje vacío para ver todos):');
+            if (motivo !== null) {
+                filtroActivo = motivo.trim();
+                actualizarListaVisitantes();
+                if (filtroActivo) {
+                    mostrarMensaje(`Filtrado por: "${filtroActivo}"`, 'info');
+                }
+            }
+        }
+
+        function limpiarFiltro() {
+            filtroActivo = '';
+            actualizarListaVisitantes();
+            mostrarMensaje('Filtro eliminado', 'info');
+        }
+
+        function actualizarEstadisticas() {
+            const total = visitantes.length;
+            const ahora = new Date();
+            const dosHorasAtras = new Date(ahora.getTime() - (2 * 60 * 60 * 1000));
+            
+            const recientes = visitantes.filter(v => v.timestamp >= dosHorasAtras).length;
+            
+            // Motivo más común
+            const motivos = {};
+            visitantes.forEach(v => {
+                motivos[v.motivo] = (motivos[v.motivo] || 0) + 1;
+            });
+            
+            const motivoMasComun = Object.keys(motivos).reduce((a, b) => 
+                motivos[a] > motivos[b] ? a : b, '-'
+            );
+            
+            // Hora promedio
+            let horaPromedio = '00:00';
+            if (total > 0) {
+                const totalMinutos = visitantes.reduce((sum, v) => {
+                    const [horas, minutos] = v.horaEntrada.split(':').map(Number);
+                    return sum + (horas * 60) + minutos;
+                }, 0);
+                
+                const promedioMinutos = Math.round(totalMinutos / total);
+                const horas = Math.floor(promedioMinutos / 60);
+                const mins = promedioMinutos % 60;
+                horaPromedio = `${String(horas).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+            }
+
+            // Actualizar contadores
+            document.getElementById('totalVisitantes').textContent = total;
+            document.getElementById('visitantesRecientes').textContent = recientes;
+            document.getElementById('motivoMasComun').textContent = motivoMasComun.length > 15 ? 
+                motivoMasComun.substring(0, 15) + '...' : motivoMasComun;
+            document.getElementById('promedioHora').textContent = horaPromedio;
+
+            // Mostrar/ocultar secciones
+            const estadisticasDiv = document.getElementById('estadisticas');
+            const resumenCard = document.getElementById('resumenCard');
+            
+            if (total > 0) {
+                estadisticasDiv.style.display = 'flex';
+                resumenCard.style.display = 'block';
+                
+                // Actualizar resumen
+                actualizarResumen();
+            } else {
+                estadisticasDiv.style.display = 'none';
+                resumenCard.style.display = 'none';
+            }
+        }
+
+        function actualizarResumen() {
+            const motivos = {};
+            const franjas = {
+                'Mañana (06:00-12:00)': 0,
+                'Tarde (12:00-18:00)': 0,
+                'Noche (18:00-23:59)': 0
+            };
+
+            visitantes.forEach(v => {
+                // Contar motivos
+                motivos[v.motivo] = (motivos[v.motivo] || 0) + 1;
+                
+                // Contar franjas horarias
+                const [horas] = v.horaEntrada.split(':').map(Number);
+                if (horas >= 6 && horas < 12) franjas['Mañana (06:00-12:00)']++;
+                else if (horas >= 12 && horas < 18) franjas['Tarde (12:00-18:00)']++;
+                else franjas['Noche (18:00-23:59)']++;
+            });
+
+            let html = '<div class="row">';
+            
+            // Motivos más comunes
+            html += '<div class="col-md-6"><h6>Motivos de Visita:</h6><ul class="list-unstyled">';
+            Object.entries(motivos)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5)
+                .forEach(([motivo, count]) => {
+                    const porcentaje = Math.round((count / visitantes.length) * 100);
+                    html += `<li>• ${motivo}: ${count} (${porcentaje}%)</li>`;
+                });
+            html += '</ul></div>';
+            
+            // Distribución horaria
+            html += '<div class="col-md-6"><h6>Distribución Horaria:</h6><ul class="list-unstyled">';
+            Object.entries(franjas).forEach(([franja, count]) => {
+                const porcentaje = visitantes.length > 0 ? Math.round((count / visitantes.length) * 100) : 0;
+                html += `<li>• ${franja}: ${count} (${porcentaje}%)</li>`;
+            });
+            html += '</ul></div>';
+            
+            html += '</div>';
+            document.getElementById('resumenContenido').innerHTML = html;
+        }
+
+        function exportarReporte() {
+            if (visitantes.length === 0) {
+                mostrarMensaje('No hay registros para exportar', 'warning');
+                return;
+            }
+
+            const fecha = new Date().toLocaleDateString('es-ES');
+            let reporte = `REPORTE DE VISITANTES - ${fecha}\n`;
+            reporte += '='.repeat(60) + '\n\n';
+            
+            reporte += `RESUMEN GENERAL:\n`;
+            reporte += `Total de visitantes: ${visitantes.length}\n`;
+            reporte += `Fecha del reporte: ${fecha}\n`;
+            reporte += `Hora del reporte: ${new Date().toLocaleTimeString('es-ES')}\n\n`;
+            
+            // Estadísticas
+            const motivos = {};
+            visitantes.forEach(v => {
+                motivos[v.motivo] = (motivos[v.motivo] || 0) + 1;
+            });
+            
+            reporte += `MOTIVOS MÁS COMUNES:\n`;
+            Object.entries(motivos)
+                .sort(([,a], [,b]) => b - a)
+                .forEach(([motivo, count]) => {
+                    const porcentaje = Math.round((count / visitantes.length) * 100);
+                    reporte += `- ${motivo}: ${count} visitantes (${porcentaje}%)\n`;
+                });
+            
+            reporte += `\nDETALLE DE VISITANTES:\n`;
+            reporte += '-'.repeat(60) + '\n';
+            
+            // Ordenar por hora de entrada
+            const visitantesOrdenados = [...visitantes].sort((a, b) => a.horaEntrada.localeCompare(b.horaEntrada));
+            
+            visitantesOrdenados.forEach((visitante, index) => {
+                reporte += `${index + 1}. ${visitante.nombre}\n`;
+                reporte += `   Hora de entrada: ${visitante.horaEntrada}\n`;
+                reporte += `   Motivo: ${visitante.motivo}\n`;
+                if (visitante.empresa) reporte += `   Empresa: ${visitante.empresa}\n`;
+                if (visitante.telefono) reporte += `   Teléfono: ${visitante.telefono}\n`;
+                reporte += '\n';
+            });
+
+            // Crear y descargar archivo
+            const blob = new Blob([reporte], { type: 'text/plain;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `visitantes_${fecha.replace(/\//g, '-')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            mostrarMensaje('Reporte exportado correctamente', 'success');
+        }
+
+        function mostrarMensaje(mensaje, tipo) {
+            // Crear elemento de alerta
+            const alerta = document.createElement('div');
+            alerta.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
+            alerta.style.top = '20px';
+            alerta.style.right = '20px';
+            alerta.style.zIndex = '9999';
+            alerta.style.minWidth = '300px';
+            
+            alerta.innerHTML = `
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alerta);
+            
+            // Auto-remover después de 4 segundos
+            setTimeout(() => {
+                if (alerta.parentNode) {
+                    alerta.remove();
+                }
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
